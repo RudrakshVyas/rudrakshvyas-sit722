@@ -1,0 +1,72 @@
+name: Deploy to Production (main)
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  IMAGE_TAG: ${{ github.sha }}
+  CUSTOMER_PORT: 8001
+  ORDER_PORT: 8002
+  PRODUCT_PORT: 8003
+  FRONTEND_PORT: 80   # change to 3000 if your FE uses 3000
+  DNS_FE: "sit722-prod-fe"
+  DNS_CUST: "sit722-prod-cust"
+  DNS_ORDER: "sit722-prod-order"
+  DNS_PROD: "sit722-prod-product"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (username/password)
+        uses: azure/login@v1
+        with:
+          creds: |
+            {
+              "clientId": null,
+              "clientSecret": null,
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+              "username": "${{ secrets.AZURE_USERNAME }}",
+              "password": "${{ secrets.AZURE_PASSWORD }}"
+            }
+
+      - name: Deploy production containers
+        run: |
+          RG="rg-sit722-10-2d"
+          LOC="australiaeast"
+          REG_SERVER="index.docker.io"
+          REG_USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          REG_PASS="${{ secrets.DOCKERHUB_TOKEN }}"
+
+          # delete old prod containers if they exist
+          for NAME in fe cust order product; do
+            az container delete -y -g "$RG" -n ${NAME}-prod || true
+          done
+
+          # deploy new
+          az container create -g "$RG" -n cust-prod \
+            --image docker.io/${{ secrets.DOCKERHUB_USERNAME }}/customer_service:${IMAGE_TAG} \
+            --registry-login-server $REG_SERVER --registry-username $REG_USER --registry-password $REG_PASS \
+            --ports ${{ env.CUSTOMER_PORT }} --dns-name-label $DNS_CUST --location "$LOC"
+
+          az container create -g "$RG" -n order-prod \
+            --image docker.io/${{ secrets.DOCKERHUB_USERNAME }}/order_service:${IMAGE_TAG} \
+            --registry-login-server $REG_SERVER --registry-username $REG_USER --registry-password $REG_PASS \
+            --ports ${{ env.ORDER_PORT }} --dns-name-label $DNS_ORDER --location "$LOC"
+
+          az container create -g "$RG" -n product-prod \
+            --image docker.io/${{ secrets.DOCKERHUB_USERNAME }}/product_service:${IMAGE_TAG} \
+            --registry-login-server $REG_SERVER --registry-username $REG_USER --registry-password $REG_PASS \
+            --ports ${{ env.PRODUCT_PORT }} --dns-name-label $DNS_PROD --location "$LOC"
+
+          az container create -g "$RG" -n fe-prod \
+            --image docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${IMAGE_TAG} \
+            --registry-login-server $REG_SERVER --registry-username $REG_USER --registry-password $REG_PASS \
+            --ports ${{ env.FRONTEND_PORT }} --dns-name-label $DNS_FE --location "$LOC"
+
+      - name: Output Prod URL
+        run: echo "::notice title=Prod URL::http://sit722-prod-fe.australiaeast.azurecontainer.io"
