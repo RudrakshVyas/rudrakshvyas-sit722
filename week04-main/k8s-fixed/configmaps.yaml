@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-map
+  namespace: sit722
+data:
+  # Database Names
+  PRODUCTS_DB_NAME: products
+  ORDERS_DB_NAME: orders
+  CUSTOMERS_DB_NAME: customers
+
+  # Database Hosts (Kubernetes Service names for Postgres)
+  PRODUCTS_DB_HOST: product-db
+  ORDERS_DB_HOST: order-db
+  CUSTOMERS_DB_HOST: customer-db
+
+  # Database Port (same for all)
+  DB_PORT: "5432"
+
+  # Inter-service URLs (ClusterIP)
+  PRODUCT_SERVICE_URL: http://product-service:8000
+  ORDER_SERVICE_URL: http://order-service:8001
+  CUSTOMER_SERVICE_URL: http://customer-service:8002
+
+  # RabbitMQ
+  RABBITMQ_HOST: rabbitmq-service
+
+  # Azure uploads (used by product-service if applicable)
+  AZURE_STORAGE_CONTAINER_NAME: uploads
+  AZURE_SAS_TOKEN_EXPIRY_HOURS: "24"

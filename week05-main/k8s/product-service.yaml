@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service-w05-aks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service-w05-aks
+  template:
+    metadata:
+      labels:
+        app: product-service-w05-aks
+    spec:
+      containers:
+        - name: product-service
+          image: sit722ruddy95586acr.azurecr.io/week05-product-service:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_HOST
+              value: product-db-service-w05-aks
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ecomm-secrets-w05-aks
+                  key: POSTGRES_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecomm-secrets-w05-aks
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ecomm-config-w05-aks
+                  key: PRODUCTS_DB_NAME
